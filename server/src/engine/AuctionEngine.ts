@@ -19,6 +19,7 @@ import { AssemblyEngine } from './AssemblyEngine.js';
 import { TestingEngine } from './TestingEngine.js';
 import { ScoringEngine } from './ScoringEngine.js';
 import { DemoSimulation } from './DemoSimulation.js';
+import { supabaseService } from '../services/supabaseService.js';
 
 export interface VariantBidResult {
   success: boolean;
@@ -704,6 +705,11 @@ export class AuctionEngine {
     if (this.onTeamUpdated) this.onTeamUpdated(team);
     if (this.onComponentUpdated) this.onComponentUpdated(targetComp);
 
+    // Asynchronously record bid into Supabase Postgres
+    supabaseService.recordBid(newBid, targetVariant, team, antiSnipeTriggered).catch((err) => {
+      console.error('Async Supabase bid persistence error:', err);
+    });
+
     return {
       success: true,
       message: 'Bid accepted!',
@@ -762,6 +768,16 @@ export class AuctionEngine {
 
     if (this.onVariantSold) this.onVariantSold(variant, winnerTeam, comp);
     if (this.onTeamUpdated) this.onTeamUpdated(winnerTeam);
+
+    // Asynchronously record variant sale & robot assembly to Supabase
+    supabaseService.recordVariantSold(variant, winnerTeam, comp, purchased).catch((err) => {
+      console.error('Async Supabase sale persistence error:', err);
+    });
+    if (winnerTeam.assembly) {
+      supabaseService.recordAssembly(winnerTeam.id, winnerTeam.assembly).catch((err) => {
+        console.error('Async Supabase assembly persistence error:', err);
+      });
+    }
   }
 
   /**
@@ -885,6 +901,14 @@ export class AuctionEngine {
     });
 
     if (this.onEventStateChange) this.onEventStateChange(this.state);
+
+    // Asynchronously persist final leaderboard and complete state to Supabase
+    supabaseService.recordTestingScores(this.state.leaderboard).catch((err) => {
+      console.error('Async Supabase testing scores persistence error:', err);
+    });
+    supabaseService.persistState(this.state).catch((err) => {
+      console.error('Async Supabase final state persistence error:', err);
+    });
   }
 
   /**
@@ -1101,9 +1125,31 @@ export class AuctionEngine {
       const tempPath = `${this.snapshotFilePath}.tmp`;
       fs.writeFileSync(tempPath, JSON.stringify(this.state, null, 2), 'utf-8');
       fs.renameSync(tempPath, this.snapshotFilePath);
+
+      // Also persist state and snapshot to Supabase Postgres
+      supabaseService.persistState(this.state).catch((err) => {
+        console.error('Async Supabase snapshot persistence error:', err);
+      });
     } catch (err) {
       console.error('Failed to save snapshot:', err);
     }
+  }
+
+  public async loadSnapshotAsync(): Promise<boolean> {
+    // 1. Try loading from Supabase first
+    try {
+      const supabaseState = await supabaseService.loadLatestSnapshot();
+      if (supabaseState && supabaseState.components && supabaseState.teams) {
+        this.state = supabaseState;
+        console.log('✅ Loaded tournament state from Supabase Postgres database.');
+        return true;
+      }
+    } catch (err) {
+      console.warn('⚠️ Could not load snapshot from Supabase, falling back to local file...', err);
+    }
+
+    // 2. Fall back to local snapshot file
+    return this.loadSnapshot();
   }
 
   public loadSnapshot(): boolean {
