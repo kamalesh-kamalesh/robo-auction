@@ -1,16 +1,11 @@
 -- =============================================================================
--- ROBO AUCTION - OFFICIAL SUPABASE DATABASE SCHEMA
--- Designed for High-Throughput Real-Time Tournament Auctions (Up to 70 Teams)
--- Includes: Strict Constraints, Foreign Keys, Indexing, and Row-Level Security (RLS)
+-- ROBO AUCTION - OFFICIAL SUPABASE DATABASE SCHEMA (IDEMPOTENT & RE-RUNNABLE)
+-- Versioned Migration
 -- =============================================================================
 
--- Enable UUID extension if needed
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- -----------------------------------------------------------------------------
 -- 1. TOURNAMENT SESSIONS TABLE
--- Tracks global tournament phases, active timers, and configuration
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.tournament_sessions (
     id TEXT PRIMARY KEY DEFAULT 'default-session',
     phase TEXT NOT NULL DEFAULT 'LOBBY',
@@ -29,10 +24,7 @@ CREATE TABLE IF NOT EXISTS public.tournament_sessions (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- -----------------------------------------------------------------------------
 -- 2. TEAMS TABLE
--- Manages participating teams, budgets, and elimination states
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.teams (
     id TEXT PRIMARY KEY,
     code TEXT NOT NULL UNIQUE,
@@ -51,10 +43,7 @@ CREATE TABLE IF NOT EXISTS public.teams (
 CREATE INDEX IF NOT EXISTS idx_teams_code ON public.teams(code);
 CREATE INDEX IF NOT EXISTS idx_teams_is_eliminated ON public.teams(is_eliminated);
 
--- -----------------------------------------------------------------------------
 -- 3. ROBOT COMPONENTS TABLE
--- Master catalog of the 20 major robot modules
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.robot_components (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -70,10 +59,7 @@ CREATE TABLE IF NOT EXISTS public.robot_components (
 CREATE INDEX IF NOT EXISTS idx_robot_components_category ON public.robot_components(category);
 CREATE INDEX IF NOT EXISTS idx_robot_components_order_num ON public.robot_components(order_num);
 
--- -----------------------------------------------------------------------------
 -- 4. COMPONENT VARIANTS TABLE
--- Specific tiers (Basic, Advanced, Pro) per component with live bidding state
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.component_variants (
     id TEXT PRIMARY KEY,
     component_id TEXT NOT NULL REFERENCES public.robot_components(id) ON DELETE CASCADE,
@@ -99,10 +85,7 @@ CREATE INDEX IF NOT EXISTS idx_variants_status ON public.component_variants(stat
 CREATE INDEX IF NOT EXISTS idx_variants_highest_bidder ON public.component_variants(highest_bidder_team_id);
 CREATE INDEX IF NOT EXISTS idx_variants_winner ON public.component_variants(winner_team_id);
 
--- -----------------------------------------------------------------------------
 -- 5. BIDS AUDIT LOG TABLE
--- Immutable record of every bid placed for anti-snipe verification & dispute prevention
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.bids (
     id BIGSERIAL PRIMARY KEY,
     variant_id TEXT NOT NULL REFERENCES public.component_variants(id) ON DELETE CASCADE,
@@ -118,10 +101,7 @@ CREATE INDEX IF NOT EXISTS idx_bids_variant_amount ON public.bids(variant_id, am
 CREATE INDEX IF NOT EXISTS idx_bids_team_id ON public.bids(team_id);
 CREATE INDEX IF NOT EXISTS idx_bids_created_at ON public.bids(created_at DESC);
 
--- -----------------------------------------------------------------------------
 -- 6. TEAM PURCHASES TABLE
--- Inventory of won components for each team
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.team_purchases (
     id TEXT PRIMARY KEY,
     team_id TEXT NOT NULL REFERENCES public.teams(id) ON DELETE CASCADE,
@@ -141,10 +121,7 @@ CREATE TABLE IF NOT EXISTS public.team_purchases (
 CREATE INDEX IF NOT EXISTS idx_team_purchases_team_id ON public.team_purchases(team_id);
 CREATE INDEX IF NOT EXISTS idx_team_purchases_category ON public.team_purchases(category);
 
--- -----------------------------------------------------------------------------
 -- 7. ROBOT ASSEMBLIES TABLE
--- Stores built robot configurations & validation statuses
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.robot_assemblies (
     team_id TEXT PRIMARY KEY REFERENCES public.teams(id) ON DELETE CASCADE,
     robot_name TEXT,
@@ -155,10 +132,7 @@ CREATE TABLE IF NOT EXISTS public.robot_assemblies (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- -----------------------------------------------------------------------------
 -- 8. TEST SCORES & LEADERBOARD TABLE
--- Calculated competition results, simulation scores, and bonuses/penalties
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.testing_scores (
     team_id TEXT PRIMARY KEY REFERENCES public.teams(id) ON DELETE CASCADE,
     team_name TEXT NOT NULL,
@@ -179,10 +153,7 @@ CREATE TABLE IF NOT EXISTS public.testing_scores (
 CREATE INDEX IF NOT EXISTS idx_testing_scores_rank ON public.testing_scores(rank);
 CREATE INDEX IF NOT EXISTS idx_testing_scores_final_score ON public.testing_scores(final_score DESC);
 
--- -----------------------------------------------------------------------------
 -- 9. AUCTION SNAPSHOTS TABLE (DISASTER RECOVERY)
--- Periodic atomic JSON dumps directly in Supabase Postgres for instant failover
--- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.auction_snapshots (
     id BIGSERIAL PRIMARY KEY,
     session_id TEXT NOT NULL DEFAULT 'default-session',
@@ -193,11 +164,7 @@ CREATE TABLE IF NOT EXISTS public.auction_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_auction_snapshots_created_at ON public.auction_snapshots(created_at DESC);
 
--- -----------------------------------------------------------------------------
--- 10. ROW LEVEL SECURITY (RLS) POLICIES
--- Enables high read performance for public leaderboards & client UI
--- Restricts mutation to the secure backend service_role to avoid client cheating
--- -----------------------------------------------------------------------------
+-- 10. ROW LEVEL SECURITY (RLS) POLICIES (SAFE DROP & CREATE)
 ALTER TABLE public.tournament_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.teams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.robot_components ENABLE ROW LEVEL SECURITY;
@@ -208,30 +175,60 @@ ALTER TABLE public.robot_assemblies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.testing_scores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.auction_snapshots ENABLE ROW LEVEL SECURITY;
 
--- Allow Public / Anon / Authenticated READ access to all tournament data
+-- Public READ policies
+DROP POLICY IF EXISTS "Allow public read on tournament_sessions" ON public.tournament_sessions;
 CREATE POLICY "Allow public read on tournament_sessions" ON public.tournament_sessions FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow public read on teams" ON public.teams;
 CREATE POLICY "Allow public read on teams" ON public.teams FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow public read on robot_components" ON public.robot_components;
 CREATE POLICY "Allow public read on robot_components" ON public.robot_components FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow public read on component_variants" ON public.component_variants;
 CREATE POLICY "Allow public read on component_variants" ON public.component_variants FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow public read on bids" ON public.bids;
 CREATE POLICY "Allow public read on bids" ON public.bids FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow public read on team_purchases" ON public.team_purchases;
 CREATE POLICY "Allow public read on team_purchases" ON public.team_purchases FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow public read on robot_assemblies" ON public.robot_assemblies;
 CREATE POLICY "Allow public read on robot_assemblies" ON public.robot_assemblies FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow public read on testing_scores" ON public.testing_scores;
 CREATE POLICY "Allow public read on testing_scores" ON public.testing_scores FOR SELECT TO anon, authenticated USING (true);
 
--- Allow service_role ALL privileges for backend synchronization
+-- Backend Service Role ALL privileges
+DROP POLICY IF EXISTS "Allow service_role full control on tournament_sessions" ON public.tournament_sessions;
 CREATE POLICY "Allow service_role full control on tournament_sessions" ON public.tournament_sessions FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow service_role full control on teams" ON public.teams;
 CREATE POLICY "Allow service_role full control on teams" ON public.teams FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow service_role full control on robot_components" ON public.robot_components;
 CREATE POLICY "Allow service_role full control on robot_components" ON public.robot_components FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow service_role full control on component_variants" ON public.component_variants;
 CREATE POLICY "Allow service_role full control on component_variants" ON public.component_variants FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow service_role full control on bids" ON public.bids;
 CREATE POLICY "Allow service_role full control on bids" ON public.bids FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow service_role full control on team_purchases" ON public.team_purchases;
 CREATE POLICY "Allow service_role full control on team_purchases" ON public.team_purchases FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow service_role full control on robot_assemblies" ON public.robot_assemblies;
 CREATE POLICY "Allow service_role full control on robot_assemblies" ON public.robot_assemblies FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow service_role full control on testing_scores" ON public.testing_scores;
 CREATE POLICY "Allow service_role full control on testing_scores" ON public.testing_scores FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow service_role full control on auction_snapshots" ON public.auction_snapshots;
 CREATE POLICY "Allow service_role full control on auction_snapshots" ON public.auction_snapshots FOR ALL TO service_role USING (true) WITH CHECK (true);
 
--- -----------------------------------------------------------------------------
--- 11. HELPER TRIGGER FUNCTION FOR UPDATED_AT
--- -----------------------------------------------------------------------------
+-- 11. TRIGGER FUNCTION FOR UPDATED_AT
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
