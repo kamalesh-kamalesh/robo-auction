@@ -14,13 +14,21 @@ const PORT = process.env.PORT || 4000;
 const app = express();
 const httpServer = createServer(app);
 
-// Dynamic CORS configuration allowing Vercel client domains & local dev
+// Dynamic CORS configuration allowing Cloudflare, Vercel client domains & local dev
 const allowedOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) 
   : ['*'];
 
+const isOriginAllowed = (origin: string | undefined): boolean => {
+  if (!origin) return true;
+  if (allowedOrigins.includes('*')) return true;
+  return allowedOrigins.includes(origin);
+};
+
 app.use(cors({
-  origin: allowedOrigins.includes('*') ? '*' : allowedOrigins,
+  origin: (origin, callback) => {
+    callback(null, isOriginAllowed(origin));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
@@ -54,7 +62,9 @@ async function startServer() {
   // Setup WebSocket communication
   const io = new Server(httpServer, {
     cors: {
-      origin: allowedOrigins.includes('*') ? '*' : allowedOrigins,
+      origin: (origin, callback) => {
+        callback(null, isOriginAllowed(origin));
+      },
       methods: ['GET', 'POST'],
       credentials: true
     }
