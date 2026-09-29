@@ -36,6 +36,10 @@
       participantError = 'Please enter your Team Security PIN.';
       return;
     }
+    if (!auction.isConnected) {
+      participantError = 'Backend server is offline. Please start the server with "npm run dev" to connect.';
+      return;
+    }
     participantError = '';
     isParticipantSubmitting = true;
     try {
@@ -64,6 +68,10 @@
     e.preventDefault();
     if (!hostPassInput.trim()) {
       hostError = 'Please enter the Host Admin Passcode.';
+      return;
+    }
+    if (!auction.isConnected) {
+      hostError = 'Backend server is offline. Please start the server with "npm run dev" to connect.';
       return;
     }
     hostError = '';
@@ -240,11 +248,15 @@
           <button
             type="submit"
             class="btn-submit-action participant-glow"
+            class:btn-disabled-offline={!auction.isConnected}
             disabled={isParticipantSubmitting}
             aria-label="Authenticate credentials and enter competition battle deck"
           >
             {#if isParticipantSubmitting}
               <span>CONNECTING UNIT...</span>
+            {:else if !auction.isConnected}
+              <AlertTriangle size={18} />
+              <span>SERVER OFFLINE (START SERVER WITH "npm run dev")</span>
             {:else}
               <span>⚡ ENTER COMPETITION BATTLE DECK</span>
               <ArrowRight size={18} />
@@ -358,11 +370,15 @@
           <button
             type="submit"
             class="btn-submit-action host-glow"
+            class:btn-disabled-offline={!auction.isConnected}
             disabled={isHostSubmitting}
             aria-label="Unlock host administrative master console"
           >
             {#if isHostSubmitting}
               <span>VALIDATING CREDENTIALS...</span>
+            {:else if !auction.isConnected}
+              <AlertTriangle size={18} />
+              <span>SERVER OFFLINE (START SERVER WITH "npm run dev")</span>
             {:else}
               <Shield size={18} />
               <span>UNLOCK HOST COMMAND MATRIX</span>
@@ -799,6 +815,15 @@
   .spectator-glow:hover {
     transform: translateY(-2px);
     box-shadow: 0 0 32px rgba(59, 130, 246, 0.5);
+  }
+
+  .btn-submit-action.btn-disabled-offline {
+    background: rgba(239, 68, 68, 0.18) !important;
+    border: 1px solid rgba(239, 68, 68, 0.45) !important;
+    color: #fca5a5 !important;
+    box-shadow: none !important;
+    cursor: not-allowed;
+    transform: none !important;
   }
 
   .btn-submit-action:disabled {
