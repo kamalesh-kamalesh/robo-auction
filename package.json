@@ -6,8 +6,10 @@
   "scripts": {
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
     "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "render:build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install && npm --prefix server run build",
+    "render:start": "node server/dist/index.js",
     "build": "npm run build --prefix server && npm run build --prefix client",
-    "start": "npm run start --prefix server",
+    "start": "node server/dist/index.js",
     "test": "npm run test --prefix server && npm run test:concurrency --prefix server",
     "test:concurrency": "npm run test:concurrency --prefix server"
   },

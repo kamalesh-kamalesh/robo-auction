@@ -93,30 +93,54 @@ This guide details how your entire Robo Auction platform is connected to **Supab
    CORS_ORIGIN=*
    ```
 
-### Step 4: Deploy Server to Render or Fly.io
-#### Deploying to Render:
-1. Push your repository to GitHub.
-2. In Render, select **"New Blueprint Instance"** and link your repo (it automatically detects [`render.yaml`](file:///d:/robo%20auction/render.yaml)).
-3. Or create a **New Web Service**:
-   - Root Directory: `server`
-   - Build Command: `npm install && npm run build`
-   - Start Command: `npm run start`
-   - Add environment variables (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `HOST_PASSCODE`, etc.).
-4. Note your public backend URL: `https://your-server-app.onrender.com`.
+### Step 4: Deploy Fully to Render (All-in-One Full-Stack Web Service)
+This is the **simplest, recommended deployment**—it runs the full Svelte UI, Socket.io real-time engine, Express APIs, and Supabase sync in **one single Render service** (100% covered by Render's free tier).
 
-### Step 5: Deploy Client to Vercel
-1. In [Vercel](https://vercel.com), click **"Add New Project"** and import your repository.
-2. Configure project settings:
-   - Root Directory: `client`
-   - Framework Preset: `Vite`
-   - Build Command: `npm run build`
-   - Output Directory: `dist`
+#### Option A — Render Blueprint (Automatic 1-Click Setup):
+1. Push your repository to GitHub.
+2. In [Render Dashboard](https://dashboard.render.com), click **"New +"** -> **"Blueprint"**.
+3. Select your `robo-auction` repository.
+4. Render will automatically read [`render.yaml`](file:///d:/robo%20auction/render.yaml) and configure the build and start commands.
+5. Under environment variables, fill in your `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+6. Click **Apply**. Once built, your app is live at `https://robo-auction.onrender.com`!
+
+#### Option B — Manual Web Service Setup on Render:
+1. Click **"New +"** -> **"Web Service"**.
+2. Connect your GitHub repository.
+3. Settings:
+   - **Name**: `robo-auction`
+   - **Region**: Nearest to you (e.g. Frankfurt, Oregon, Singapore)
+   - **Branch**: `main`
+   - **Root Directory**: *(leave blank / repository root)*
+   - **Runtime**: `Node`
+   - **Build Command**: `npm run render:build`
+   - **Start Command**: `npm run render:start`
+   - **Plan**: `Free`
+4. Add Environment Variables:
+   - `NODE_ENV`: `production`
+   - `PORT`: `10000`
+   - `HOST_PASSCODE`: `your_secret_admin_passcode`
+   - `RESTORE_SNAPSHOT`: `true`
+   - `AUTO_SNAPSHOT`: `true`
+   - `SNAPSHOT_INTERVAL_MS`: `15000`
+   - `SUPABASE_URL`: `https://your-project-ref.supabase.co`
+   - `SUPABASE_SERVICE_ROLE_KEY`: `your-supabase-service-role-key`
+5. Click **Create Web Service**.
+6. When deployment finishes, visit your Render URL:
+   - `/` — Spectator, Lobby, Team portal, Host dashboard, and Projector view
+   - `/health` — Render health check verification
+
+---
+
+### Step 5 (Optional): Split Deployment (Render Backend + Vercel Frontend)
+If you prefer running the frontend on Vercel's Edge CDN:
+1. Deploy your server to Render as above.
+2. In [Vercel](https://vercel.com), import your repo with Root Directory set to `client`.
 3. Add Environment Variables:
-   - `VITE_SERVER_URL`: `https://your-server-app.onrender.com`
+   - `VITE_SERVER_URL`: `https://your-server.onrender.com`
    - `VITE_SUPABASE_URL`: `https://your-project-ref.supabase.co`
    - `VITE_SUPABASE_ANON_KEY`: `your-supabase-anon-key`
-4. Click **Deploy**.
-5. Once deployed, update `CORS_ORIGIN` in your Render server settings to your Vercel URL (e.g. `https://robo-auction.vercel.app`) for strict security.
+4. Set `CORS_ORIGIN` in Render environment variables to your Vercel URL.
 
 ---
 

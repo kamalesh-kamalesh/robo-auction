@@ -7,12 +7,14 @@ function getBackendUrl(): string {
     return envUrl;
   }
 
-  // If running in browser on localhost or local LAN
+  // If running in browser
   if (typeof window !== 'undefined') {
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     if (isLocalhost) {
       return `${window.location.protocol}//${window.location.hostname}:4000`;
     }
+    // In production (Render, custom domain, etc.) connect to current origin
+    return window.location.origin;
   }
 
   // Fallback default

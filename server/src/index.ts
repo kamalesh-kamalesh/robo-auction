@@ -73,13 +73,22 @@ async function startServer() {
     });
   });
 
-  // Serve client build if available (single-container production mode)
-  const clientDistPath = path.resolve(process.cwd(), '../client/dist');
-  if (fs.existsSync(clientDistPath)) {
+  // Serve client build if available (single-container production mode on Render / Docker / cloud)
+  const candidateClientPaths = [
+    path.resolve(process.cwd(), 'client/dist'),
+    path.resolve(process.cwd(), '../client/dist'),
+    path.resolve(__dirname, '../../client/dist'),
+    path.resolve(__dirname, '../client/dist')
+  ];
+  const clientDistPath = candidateClientPaths.find(p => fs.existsSync(p));
+  if (clientDistPath) {
+    console.log(`🌐 Serving client frontend from: ${clientDistPath}`);
     app.use(express.static(clientDistPath));
     app.get('*', (_, res) => {
       res.sendFile(path.join(clientDistPath, 'index.html'));
     });
+  } else {
+    console.log(`ℹ️ Client dist not found (checked: ${candidateClientPaths.join(', ')}). Running in API/WebSocket mode only.`);
   }
 
   httpServer.listen(PORT, () => {

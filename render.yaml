@@ -1,11 +1,10 @@
 services:
-  # ROBO AUCTION - BACKEND ENGINE (Socket.io + Express + Supabase Sync)
+  # ROBO AUCTION - FULL-STACK PLATFORM (Frontend UI + Socket.io Engine + Express REST + Supabase Sync)
   - type: web
-    name: robo-auction-server
+    name: robo-auction
     env: node
-    rootDir: server
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
+    buildCommand: npm run render:build
+    startCommand: npm run render:start
     plan: free
     healthCheckPath: /health
     envVars:
