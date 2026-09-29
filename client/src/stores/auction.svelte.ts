@@ -221,8 +221,27 @@ class AuctionStore {
       return { success: false, message: 'Team PIN is required.' };
     }
     const cleanPin = pin.trim();
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     return new Promise((resolve) => {
+      let resolved = false;
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve({
+            success: false,
+            message: 'Server connection timed out. Please ensure the auction backend server is running and reachable.'
+          });
+        }
+      }, 7000);
+
       socket.emit('team:join', { teamId: teamCode, pin: cleanPin, teamName }, (res: any) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
         if (res?.success) {
           this.role = 'team';
           this.currentTeam = res.team;
@@ -245,8 +264,27 @@ class AuctionStore {
       return { success: false, message: 'Team PIN is required.' };
     }
     const cleanPin = pin.trim();
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     return new Promise((resolve) => {
+      let resolved = false;
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve({
+            success: false,
+            message: 'Server connection timed out. Please ensure the auction backend server is running and reachable.'
+          });
+        }
+      }, 7000);
+
       socket.emit('team:register', { teamCode, pin: cleanPin, teamName }, (res: any) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
         if (res?.success) {
           this.role = 'team';
           this.currentTeam = res.team;
@@ -265,13 +303,36 @@ class AuctionStore {
   }
 
   async loginAsHost(hostPasscode: string): Promise<{ success: boolean; message?: string }> {
+    if (!hostPasscode || !hostPasscode.trim()) {
+      return { success: false, message: 'Host passcode is required.' };
+    }
+    const cleanPass = hostPasscode.trim();
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     return new Promise((resolve) => {
-      socket.emit('join:host', { hostPasscode }, (res: any) => {
+      let resolved = false;
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve({
+            success: false,
+            message: 'Server connection timed out. Please ensure the auction backend server is running and reachable.'
+          });
+        }
+      }, 7000);
+
+      socket.emit('join:host', { hostPasscode: cleanPass }, (res: any) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timer);
         if (res?.success) {
           this.role = 'host';
           this.state = res.state;
           localStorage.setItem('robo_role', 'host');
-          localStorage.setItem('robo_host_pass', hostPasscode);
+          localStorage.setItem('robo_host_pass', cleanPass);
           this.addToast('success', 'Host Command Online', 'Full Robo Auction command center active.');
           resolve({ success: true });
         } else {

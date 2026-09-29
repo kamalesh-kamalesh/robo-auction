@@ -91,10 +91,17 @@
     <!-- Brand Header -->
     <header class="login-brand-header">
       <div class="brand-badge-row">
-        <span class="live-pulse-badge">
-          <span class="pulse-dot"></span>
-          <span>COMPETITION SERVER ONLINE</span>
-        </span>
+        {#if auction.isConnected}
+          <span class="live-pulse-badge online">
+            <span class="pulse-dot"></span>
+            <span>COMPETITION SERVER ONLINE</span>
+          </span>
+        {:else}
+          <span class="live-pulse-badge offline">
+            <span class="pulse-dot pulse-red"></span>
+            <span>SERVER CONNECTING / OFFLINE</span>
+          </span>
+        {/if}
         <span class="budget-pill">STARTING ALLOCATION: ₹100,000</span>
       </div>
 
@@ -487,6 +494,17 @@
   @keyframes pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.4; transform: scale(0.85); }
+  }
+
+  .live-pulse-badge.offline {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+  }
+
+  .pulse-dot.pulse-red {
+    background: #ef4444;
+    box-shadow: 0 0 8px #ef4444;
   }
 
   .budget-pill {
